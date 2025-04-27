@@ -1,0 +1,6 @@
+outs:
+- md5: 3f60e8935e3883b0ec8a7969e6063212.dir
+  size: 39534220144
+  nfiles: 345
+  hash: md5
+  path: npy_data
