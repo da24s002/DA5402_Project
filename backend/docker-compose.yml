@@ -1,0 +1,60 @@
+version: "3.8"
+
+services:
+  fastapi-backend:
+    build: .
+    container_name: fastapi-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - PORT=8000
+      - IMG_DATA_LOCATION=/data/uploaded_img_data/category
+      - MLFLOW_HOSTED_MODEL_URL=http://host.docker.internal:5002/invocations/
+    volumes:
+      - ./uploaded_img_data:/data/uploaded_img_data
+
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    container_name: ui
+    ports:
+      - "9080:9080"
+    depends_on:
+      - fastapi-backend
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    depends_on:
+      - fastapi-backend
+      # - windows-exporter
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - grafana-storage:/var/lib/grafana
+
+  # windows-exporter:
+  #   image: prometheuscommunity/windows-exporter
+  #   container_name: windows-exporter
+  #   ports:
+  #     - "9182:9182"
+  #   restart: unless-stopped
+
+volumes:
+  grafana-storage:

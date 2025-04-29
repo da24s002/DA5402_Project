@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Pipeline Runs Status</title>
+    <style>
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+        th { background-color: #f2f2f2; cursor: help; }
+        tr:hover { background-color: #f5f5f5; }
+        .waiting { background-color: #fff9c4; }
+        .complete { background-color: #c8e6c9; }
+        .failed { background-color: #ffcdd2; }
+        .duration { 
+            font-size: 0.8em; 
+            color: #666;
+            display: block;
+            margin-top: 3px;
+        }
+        .status-cell {
+            position: relative;
+        }
+        .tooltip {
+            visibility: hidden;
+            width: 200px;
+            background-color: #555;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .status-cell:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <h2>Pipeline Runs Status</h2>
+    <table id="runsTable">
+        <thead>
+            <tr>
+                <th title="Unique identifier for each pipeline run">Run ID</th>
+                <th title="Time when the pipeline run was initiated">Start Time</th>
+                <th title="Scan and count files in the upload directory">Stage 1</th>
+                <th title="Move pre-existing data to old data directory">Stage 2</th>
+                <th title="Convert uploaded images to numpy arrays and delete original PNGs">Stage 3</th>
+                <th title="Version the data using DVC">Stage 4</th>
+                <th title="Retrain the model with new data">Stage 5</th>
+                <th title="Register the updated model in MLflow">Stage 6</th>
+                <th title="Clean up empty image folders">Stage 7</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        function formatDuration(start, end) {
+            if (!start || !end) return 'N/A';
+            
+            const startDate = new Date(start);
+            const endDate = new Date(end);
+            const durationMs = endDate - startDate;
+            
+            if (durationMs < 1000) return `${durationMs}ms`;
+            if (durationMs < 60000) return `${Math.round(durationMs/1000)}s`;
+            
+            const minutes = Math.floor(durationMs / 60000);
+            const seconds = Math.round((durationMs % 60000) / 1000);
+            return `${minutes}m ${seconds}s`;
+        }
+
+        function formatTooltip(start, end) {
+            if (!start || !end) return 'Not completed';
+            
+            const startTime = new Date(start).toLocaleTimeString();
+            const endTime = new Date(end).toLocaleTimeString();
+            return `Start: ${startTime}<br>End: ${endTime}`;
+        }
+
+        async function fetchRuns() {
+            try {
+                const response = await fetch('http://localhost:8001/pipeline_runs');
+                const runs = await response.json();
+                const tbody = document.querySelector('#runsTable tbody');
+                tbody.innerHTML = '';
+                
+                runs.forEach(run => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${run.run_id}</td>
+                        <td>${new Date(run.start_time).toLocaleString()}</td>
+                        <td class="status-cell ${run.stage_1_status}">
+                            ${run.stage_1_status}
+                            <div class="duration">${formatDuration(run.stage_1_start, run.stage_1_end)}</div>
+                            <span class="tooltip">${formatTooltip(run.stage_1_start, run.stage_1_end)}</span>
+                        </td>
+                        <td class="status-cell ${run.stage_2_status}">
+                            ${run.stage_2_status}
+                            <div class="duration">${formatDuration(run.stage_2_start, run.stage_2_end)}</div>
+                            <span class="tooltip">${formatTooltip(run.stage_2_start, run.stage_2_end)}</span>
+                        </td>
+                        <td class="status-cell ${run.stage_3_status}">
+                            ${run.stage_3_status}
+                            <div class="duration">${formatDuration(run.stage_3_start, run.stage_3_end)}</div>
+                            <span class="tooltip">${formatTooltip(run.stage_3_start, run.stage_3_end)}</span>
+                        </td>
+                        <td class="status-cell ${run.stage_4_status}">
+                            ${run.stage_4_status}
+                            <div class="duration">${formatDuration(run.stage_4_start, run.stage_4_end)}</div>
+                            <span class="tooltip">${formatTooltip(run.stage_4_start, run.stage_4_end)}</span>
+                        </td>
+                        <td class="status-cell ${run.stage_5_status}">
+                            ${run.stage_5_status}
+                            <div class="duration">${formatDuration(run.stage_5_start, run.stage_5_end)}</div>
+                            <span class="tooltip">${formatTooltip(run.stage_5_start, run.stage_5_end)}</span>
+                        </td>
+                        <td class="status-cell ${run.stage_6_status}">
+                            ${run.stage_6_status}
+                            <div class="duration">${formatDuration(run.stage_6_start, run.stage_6_end)}</div>
+                            <span class="tooltip">${formatTooltip(run.stage_6_start, run.stage_6_end)}</span>
+                        </td>
+                        <td class="status-cell ${run.stage_7_status}">
+                            ${run.stage_7_status}
+                            <div class="duration">${formatDuration(run.stage_7_start, run.stage_7_end)}</div>
+                            <span class="tooltip">${formatTooltip(run.stage_7_start, run.stage_7_end)}</span>
+                        </td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (error) {
+                console.error('Error fetching runs:', error);
+            }
+        }
+
+        // Initial fetch and periodic refresh
+        fetchRuns();
+        setInterval(fetchRuns, 5000);
+    </script>
+</body>
+</html>

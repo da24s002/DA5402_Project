@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Drawing Prediction App</title>
+  <style>
+    body {
+      background: linear-gradient(135deg, #f0f4f8 0%, #d9e7fa 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Segoe UI', Arial, sans-serif;
+    }
+    .container {
+      background: #fff;
+      border-radius: 18px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.08);
+      padding: 32px 40px 24px 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    #drawing-canvas {
+      border: 2px solid #3b82f6;
+      background: #111;
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(59,130,246,0.08);
+      margin-bottom: 18px;
+      cursor: crosshair;
+      transition: box-shadow 0.2s;
+    }
+    #drawing-canvas:active {
+      box-shadow: 0 0 0 4px #3b82f644;
+    }
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+    .button {
+      background: #3b82f6;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 18px;
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      outline: none;
+      box-shadow: 0 1px 4px rgba(59,130,246,0.08);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .button:hover, .button:focus {
+      background: #2563eb;
+      transform: translateY(-2px) scale(1.03);
+    }
+    #prediction-result {
+      margin-top: 10px;
+      font-size: 1.1rem;
+      color: #2563eb;
+      font-weight: 600;
+      min-height: 1.5em;
+    }
+    .modal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.35);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      animation: fadeIn 0.2s;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .modal-content {
+      background: #fff;
+      border-radius: 12px;
+      padding: 24px 32px;
+      box-shadow: 0 4px 32px rgba(0,0,0,0.18);
+      text-align: center;
+      min-width: 260px;
+      max-width: 90vw;
+      animation: popIn 0.2s;
+    }
+    @keyframes popIn {
+      from { transform: scale(0.92);}
+      to { transform: scale(1);}
+    }
+    .modal-content button {
+      margin: 6px 8px;
+      padding: 8px 16px;
+      border-radius: 6px;
+      border: none;
+      background: #3b82f6;
+      color: #fff;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .modal-content button:hover {
+      background: #2563eb;
+    }
+    .modal-content .other-btn {
+      background: #eab308;
+      color: #222;
+    }
+    .modal-content .other-btn:hover {
+      background: #facc15;
+    }
+    .brush-controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .brush-controls label {
+      font-size: 0.95em;
+      color: #333;
+    }
+    .brush-controls input[type="range"] {
+      accent-color: #3b82f6;
+    }
+    .brush-controls input[type="color"] {
+      border: none;
+      width: 32px;
+      height: 32px;
+      background: none;
+      padding: 0;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2 style="margin-bottom: 10px;">Draw your image below</h2>
+    <!-- <div class="brush-controls">
+      <label for="brush-size">Brush Size:</label>
+      <input type="range" id="brush-size" min="1" max="20" value="2"> -->
+      <!-- <label for="brush-color">Brush Color:</label>
+      <input type="color" id="brush-color" value="#ffffff"> -->
+    <!-- </div> -->
+    <canvas id="drawing-canvas" width="280" height="280"></canvas>
+    <div class="controls">
+      <button class="button" id="predict-btn">Predict</button>
+      <button class="button" id="eraser-btn">Eraser</button>
+      <button class="button" id="clear-btn">Clear</button>
+    </div>
+    <div id="prediction-result"></div>
+    <div id="feedback-dialog" class="modal" style="display:none;"></div>
+  </div>
+  <script>
+
+    
+    // Drawing logic
+    const canvas = document.getElementById('drawing-canvas');
+    const ctx = canvas.getContext('2d');
+    let drawing = false, erasing = false, lastX, lastY;
+    let brushSize = 2;
+    let brushColor = "#ffffff";
+
+    // Initialize canvas background
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Brush controls
+    // document.getElementById('brush-size').oninput = function() {
+    //   brushSize = parseInt(this.value);
+    // };
+    brushSize = 10
+    // document.getElementById('brush-color').oninput = function() {
+    //   brushColor = this.value;
+    // };
+    
+
+    function setBrush() {
+      ctx.strokeStyle = erasing ? "#000" : brushColor;
+      ctx.lineWidth = erasing ? 20 : brushSize;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+    }
+
+    canvas.addEventListener('mousedown', e => {
+      drawing = true;
+      [lastX, lastY] = [e.offsetX, e.offsetY];
+    });
+    canvas.addEventListener('mousemove', e => {
+      if (!drawing) return;
+      setBrush();
+      ctx.beginPath();
+      ctx.moveTo(lastX, lastY);
+      ctx.lineTo(e.offsetX, e.offsetY);
+      ctx.stroke();
+      [lastX, lastY] = [e.offsetX, e.offsetY];
+    });
+    canvas.addEventListener('mouseup', () => drawing = false);
+    canvas.addEventListener('mouseleave', () => drawing = false);
+
+    document.getElementById('eraser-btn').onclick = () => { 
+      erasing = !erasing; 
+      document.getElementById('eraser-btn').classList.toggle('active', erasing);
+      
+      if (erasing) {
+        document.getElementById('eraser-btn').innerHTML = "Brush";
+      } else {
+        document.getElementById('eraser-btn').innerHTML = "Eraser";
+      }
+    };
+    document.getElementById('clear-btn').onclick = () => {
+      ctx.fillStyle = "#000";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      document.getElementById('prediction-result').textContent = "";
+    };
+
+    // Prediction logic
+    document.getElementById('predict-btn').onclick = async () => {
+      // Downscale to 28x28
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = 28; tempCanvas.height = 28;
+      tempCanvas.getContext('2d').drawImage(canvas, 0, 0, 28, 28);
+
+      // 1. Get ImageData
+      const imgDataObj = tempCanvas.getContext('2d').getImageData(0, 0, 28, 28);
+      const data = imgDataObj.data; // Uint8ClampedArray, length 28*28*4
+
+      // 2. Convert RGBA to grayscale, flatten to 784 values
+      const gray = new Uint8Array(28 * 28);
+      for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+        // Standard luminosity formula
+        gray[j] = Math.round(
+          0.299 * data[i] +      // R
+          0.587 * data[i + 1] +  // G
+          0.114 * data[i + 2]    // B
+        );
+        // Ignore alpha (data[i+3])
+      }
+
+      // 3. Convert Uint8Array to binary string
+      let binary = '';
+      for (let i = 0; i < gray.length; i++) {
+        binary += String.fromCharCode(gray[i]);
+      }
+
+      // 4. Base64 encode the binary string
+      const imgDataBase64 = btoa(binary);
+
+      // Show loading indicator
+      document.getElementById('prediction-result').textContent = "Predicting...";
+
+      try {
+        const response = await fetch('http://localhost:8000/invocations/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ inputs: imgDataBase64 })
+        });
+        if (!response.ok) throw new Error(await response.text());
+        const data = await response.json();
+        const prediction = data.predictions[0];
+        showPredictionDialog(prediction, data.predictions);
+      } catch (err) {
+        document.getElementById('prediction-result').textContent = "Prediction failed!";
+        alert("Prediction failed: " + err.message);
+      }
+    };
+
+    function showPredictionDialog(prediction, allPredictions) {
+      const dialog = document.getElementById('feedback-dialog');
+      dialog.innerHTML = `
+        <div class="modal-content">
+          <p style="font-size:1.2rem;">The model predicts: <b>${prediction}</b></p>
+          <p>Is this correct?</p>
+          <button onclick="submitFeedback(true)">Yes</button>
+          <button onclick="showCorrectionOptions()">No</button>
+        </div>
+      `;
+      dialog.style.display = 'flex';
+      window.submitFeedback = async (isCorrect) => {
+        dialog.style.display = 'none';
+        if (!isCorrect) return showCorrectionOptions(allPredictions);
+        document.getElementById('prediction-result').textContent = 'Thanks for confirming!';
+        document.getElementById('clear-btn').click();
+        setTimeout(() => document.getElementById('prediction-result').textContent = '', 2000);
+      };
+      window.showCorrectionOptions = (preds = allPredictions) => {
+        dialog.innerHTML = `
+          <div class="modal-content">
+            <p>Select the correct class:</p>
+            ${preds.slice(1).map(p => `<button onclick="submitCorrection('${p}')">${p}</button>`).join('')}
+            <button class="other-btn" onclick="submitCorrection('other')">Other</button>
+          </div>
+        `;
+      };
+      window.submitCorrection = async (correctValue) => {
+        
+        if (correctValue == 'other'){
+          alert("Thank you for feedback!");
+          dialog.style.display = 'none';
+          document.getElementById('prediction-result').textContent = `Thanks for your feedback!`;
+          document.getElementById('clear-btn').click();
+          setTimeout(() => document.getElementById('prediction-result').textContent = '', 2000);
+        } else {
+          // Send correction to backend
+          const tempCanvas = document.createElement('canvas');
+          tempCanvas.width = 28; tempCanvas.height = 28;
+          tempCanvas.getContext('2d').drawImage(canvas, 0, 0, 28, 28);
+          // const imgData = tempCanvas.toDataURL('image/png').split(',')[1];
+          // 1. Get ImageData
+          const imgDataObj = tempCanvas.getContext('2d').getImageData(0, 0, 28, 28);
+          const data = imgDataObj.data; // Uint8ClampedArray, length 28*28*4
+
+          // 2. Convert RGBA to grayscale, flatten to 784 values
+          const gray = new Uint8Array(28 * 28);
+          for (let i = 0, j = 0; i < data.length; i += 4, j++) {
+            // Standard luminosity formula
+            gray[j] = Math.round(
+              0.299 * data[i] +      // R
+              0.587 * data[i + 1] +  // G
+              0.114 * data[i + 2]    // B
+            );
+            // Ignore alpha (data[i+3])
+          }
+
+          // 3. Convert Uint8Array to binary string
+          let binary = '';
+          for (let i = 0; i < gray.length; i++) {
+            binary += String.fromCharCode(gray[i]);
+          }
+
+          // 4. Base64 encode the binary string
+          const imgDataBase64 = btoa(binary);
+          try {
+            await fetch('http://localhost:8000/save-image/', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              // body: JSON.stringify({ image: imgData, category: correctValue })
+              body: JSON.stringify({ image: imgDataBase64, category: correctValue })
+            });
+            alert("Thank you for feedback!")
+            dialog.style.display = 'none';
+            document.getElementById('prediction-result').textContent = `Thanks for your feedback!`;
+            document.getElementById('clear-btn').click();
+            setTimeout(() => document.getElementById('prediction-result').textContent = '', 2000);
+          } catch (err) {
+            dialog.style.display = 'none';
+            alert("Feedback failed: " + err.message);
+          }
+
+        }
+        
+      };
+    }
+  </script>
+</body>
+</html>
