@@ -61,6 +61,22 @@ def update_count_file():
     except Exception as e:
         logger.error(f"Failed to update count file: {e}")
 
+@app.get("/test-invocations-error")
+def error_fun():
+    try:
+        a = 0/0
+    except Exception as e:
+        error_counter.labels(endpoint="/invocations/", error_type="base64_error").inc()
+        raise HTTPException(status_code=400, detail="Testing invocations error")
+
+@app.get("/test-save-image-error")
+def error_fun():
+    try:
+        a = 0/0
+    except Exception as e:
+        error_counter.labels(endpoint="/save-image/", error_type="base64_error").inc()
+        raise HTTPException(status_code=400, detail="Testing save image error")
+
 @app.post("/save-image/")
 async def save_image(data: ImageData):
     save_image_requests.inc()
@@ -95,11 +111,11 @@ async def save_image(data: ImageData):
 
     except base64.binascii.Error:
         logger.error("Invalid base64 encoding", exc_info=True)
-        error_counter.labels(endpoint="/save-image", error_type="base64_error").inc()
+        error_counter.labels(endpoint="/save-image/", error_type="base64_error").inc()
         raise HTTPException(status_code=400, detail="Invalid base64 encoding")
     except Exception as e:
         logger.error("Error processing image: %s", str(e), exc_info=True)
-        error_counter.labels(endpoint="/save-image", error_type="general_error").inc()
+        error_counter.labels(endpoint="/save-image/", error_type="general_error").inc()
         raise HTTPException(status_code=500, detail=f"Error processing image: {str(e)}")
 
 @app.post("/invocations/")

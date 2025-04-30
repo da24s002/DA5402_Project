@@ -1,0 +1,2 @@
+cd "C:\Users\puspak\Desktop\Data Science and AI IITM\courses\sem2\MLOps\project\project_org\backend\pipeline_management"
+start "" "C:\Users\puspak\AppData\Local\Programs\Python\Python310\python.exe" "C:\Users\puspak\Desktop\Data Science and AI IITM\courses\sem2\MLOps\project\project_org\backend\pipeline_management\pipeline_orchestrator.py"

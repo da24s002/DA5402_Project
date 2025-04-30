@@ -13,4 +13,7 @@ experiment_name = "doodle-classifier"
 deployment_model_name = "doodle-classifier"
 deployment_model_tag = "model_to_deploy"
 
+file_threshold = 1
+retraining_epochs_num = 10
+
 

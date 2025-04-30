@@ -8,8 +8,9 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-from config import model_folder_path, base_npy_file_path, new_npy_file_path, best_model_name, mlflow_url, experiment_name
+from config import model_folder_path, base_npy_file_path, new_npy_file_path, best_model_name, mlflow_url, experiment_name, retraining_epochs_num
 import mlflow
+import subprocess
 
 import logging
 import sys
@@ -21,6 +22,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger()
 
+# subprocess.run(["set","PYTHONIOENCODING=utf-8"])
 
 base_folder_path = base_npy_file_path
 new_folder_path = new_npy_file_path
@@ -134,7 +136,7 @@ def main():
         # best_model_name = "best_model_last_layer_unfreezed.pth"
         model_complete_path = model_folder_path + best_model_name
 
-        # 1. Load your saved model
+        # Load your saved model
         model = models.resnet50()
         logger.info("resnet 50 model loaded")
 
@@ -188,9 +190,9 @@ def main():
         model.train()
         best_val_accuracy = 0
 
-        num_epochs = 10
+        num_epochs = retraining_epochs_num
         logger.info("training is starting")
-        with mlflow.start_run("retrain-doodle-classifier"):
+        with mlflow.start_run(run_name="retrain-doodle-classifier"):
             for epoch in range(num_epochs):
                 running_loss = 0.0
                 correct = 0
