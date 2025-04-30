@@ -1,0 +1,2 @@
+mlflow server
+mlflow models serve -m "models:/doodle-classifier@model_to_deploy" --port 5002 --host 0.0.0.0 --env-manager=conda
