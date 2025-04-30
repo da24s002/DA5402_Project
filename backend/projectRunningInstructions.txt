@@ -1,0 +1,24 @@
+make sure the google dataset npy files are in the director npy_data/base_data
+make sure you have ran dvc init and added the npy_data to dvc
+
+go to the parent folder and run (folder containing docker compose.yaml)
+docker compose up --build
+
+run the following commands from powershell
+mlflow server
+mlflow models serve -m "models:/doodle-classifier@model_to_deploy" --port 5002 --host 0.0.0.0 --env-manager=conda
+
+run windows exporter exe
+
+go to pipeline_management folder and run
+docker compose up --build
+
+next run the following command to use the webui for pipeline dashboard
+python fetch_pipeline_runs.py
+
+to view the dashboard
+double click on the index.html
+
+
+to trigger the pipeline you can run the run_pipeline.bat file,
+or to run it periodically set it as a job in windows scheduler.
